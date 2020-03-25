@@ -1,7 +1,4 @@
-import org.opencv.core.Core;
-import org.opencv.core.Mat;
-import org.opencv.core.Scalar;
-import org.opencv.core.Size;
+import org.opencv.core.*;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
@@ -12,6 +9,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 
 
 public class ColorDetection {
@@ -26,11 +24,10 @@ public class ColorDetection {
     private ImageIcon icon1, icon2;
 
 
-    public ColorDetection(String imgname){
+    public ColorDetection (String imgname){
 
         Mat in;
         Mat blurredImage = new Mat();
-        Mat outputImage = new Mat();
         mask = new Mat();
         mask1 = new Mat();
         mask2 = new Mat();
@@ -42,11 +39,11 @@ public class ColorDetection {
             System.exit(1);
         }
         in = Imgcodecs.imread(imgname);
-        Imgproc.blur(in, blurredImage, new Size(3, 3));
+        Imgproc.blur(in, blurredImage, new Size(5, 5));
         Imgproc.cvtColor(blurredImage, hsvImage, Imgproc.COLOR_BGR2HSV);
 
-        Core.inRange(hsvImage,  new Scalar(0,50, 155), new Scalar(5, 255, 255), mask1);
-        Core.inRange(hsvImage, new Scalar(175, 50, 155), new Scalar(180, 255, 255), mask2);
+        Core.inRange(hsvImage,  new Scalar(0,50, 120), new Scalar(13, 255, 255), mask1);
+        Core.inRange(hsvImage, new Scalar(175, 50, 120), new Scalar(180, 255, 255), mask2);
 
         Core.bitwise_or(mask1, mask2, mask);
         //mask1 = mask1 + mask2;
@@ -57,8 +54,9 @@ public class ColorDetection {
         input = new JLabel();
         output = new JLabel();
 
-        icon1 = new ImageIcon(imgIn);
-        icon2 = new ImageIcon(imgOut);
+
+        icon1 = new ImageIcon(imgIn.getScaledInstance(800, 600, Image.SCALE_SMOOTH));
+        icon2 = new ImageIcon(imgOut.getScaledInstance(600, 800, Image.SCALE_SMOOTH));
         input.setIcon(icon1);
         output.setIcon(icon2);
         panel = new JPanel();
@@ -69,7 +67,6 @@ public class ColorDetection {
         frame.add(panel);
 
     }
-
     /*https://github.com/opencv-java/object-detection/commit/b6c2afe355c34ff6b103961142f5f0e2601d024f*/
     private BufferedImage matToBufferedImage(Mat original)
     {
@@ -93,12 +90,12 @@ public class ColorDetection {
         return image;
     }
 
-    public static void main (String[] args){
-
+    public static void main (String [] args){
 
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+
         ColorDetection cd = new ColorDetection("res/cards.jpg");
-        cd.frame.setPreferredSize(new Dimension(1360, 640));
+        cd.frame.setPreferredSize(new Dimension(1600, 900));
         cd.frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // reagér paa luk
         cd.frame.pack();                       // saet vinduets stoerrelse
         cd.frame.setVisible(true);                      // aabn vinduet
