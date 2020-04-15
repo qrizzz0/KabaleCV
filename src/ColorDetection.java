@@ -20,7 +20,7 @@ public class ColorDetection {
     public JLabel input;
     public JLabel output;
     public Mat hsvImage;
-    public Mat mask, mask1, mask2;
+    public Mat mask;
     private ImageIcon icon1, icon2;
 
 
@@ -29,8 +29,6 @@ public class ColorDetection {
         Mat in;
         Mat blurredImage = new Mat();
         mask = new Mat();
-        mask1 = new Mat();
-        mask2 = new Mat();
         hsvImage = new Mat();
         try {
             imgIn = ImageIO.read(new File(imgname));
@@ -42,21 +40,21 @@ public class ColorDetection {
         Imgproc.blur(in, blurredImage, new Size(5, 5));
         Imgproc.cvtColor(blurredImage, hsvImage, Imgproc.COLOR_BGR2HSV);
 
-        Core.inRange(hsvImage,  new Scalar(0,50, 120), new Scalar(13, 255, 255), mask1);
-        Core.inRange(hsvImage, new Scalar(175, 50, 120), new Scalar(180, 255, 255), mask2);
+        Core.inRange(hsvImage,  new Scalar(100,150, 150), new Scalar(120, 255, 255), mask);
 
-        Core.bitwise_or(mask1, mask2, mask);
-        //mask1 = mask1 + mask2;
 
         //Imgproc.cvtColor(mask, outputImage, Imgproc.COLOR_HSV2BGR);
+
+        mask = Imgcodecs.imread("res/output.png");
         imgOut = matToBufferedImage(mask);
 
+        Imgcodecs.imwrite("res/output.png", mask);
         input = new JLabel();
         output = new JLabel();
 
 
         icon1 = new ImageIcon(imgIn.getScaledInstance(800, 600, Image.SCALE_SMOOTH));
-        icon2 = new ImageIcon(imgOut.getScaledInstance(600, 800, Image.SCALE_SMOOTH));
+        icon2 = new ImageIcon(imgOut.getScaledInstance(800, 600, Image.SCALE_SMOOTH));
         input.setIcon(icon1);
         output.setIcon(icon2);
         panel = new JPanel();
@@ -94,8 +92,8 @@ public class ColorDetection {
 
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 
-        ColorDetection cd = new ColorDetection("res/cards.jpg");
-        cd.frame.setPreferredSize(new Dimension(1600, 900));
+        ColorDetection cd = new ColorDetection("res/Board.jpg");
+        cd.frame.setPreferredSize(new Dimension(1800, 900));
         cd.frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // reagér paa luk
         cd.frame.pack();                       // saet vinduets stoerrelse
         cd.frame.setVisible(true);                      // aabn vinduet
