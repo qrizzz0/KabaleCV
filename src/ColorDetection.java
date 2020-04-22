@@ -88,14 +88,18 @@ public class ColorDetection {
             }
 
         }
-        drawRectangles(resized_mask, rects, labels);
 
-        Imgcodecs.imwrite("res/output.png", resized_mask);
+        rescaleRectToFit(resized_mask, in, rects);
+
+        drawRectangles(in, rects, labels);
+
+        Imgcodecs.imwrite("res/output.png", in);
+        Imgcodecs.imwrite("res/output2.png", mask);
 
         double end = System.currentTimeMillis();
 
         System.out.println("Time spent (ms): " + (end - start));
-        imgOut = matToBufferedImage(resized_mask);
+        imgOut = matToBufferedImage(in);
 
         input = new JLabel();
         output = new JLabel();
@@ -113,14 +117,25 @@ public class ColorDetection {
         frame.add(panel);
 
     }
+    private void rescaleRectToFit(Mat org, Mat comp, ArrayList<Rect> rects){
+        for(int i = 0; i < rects.size(); i++){
+            double width = rects.get(i).width*((double) comp.cols()/org.cols());
+            double height = rects.get(i).height*((double) comp.rows()/org.rows());
+            double x =  comp.cols()*((double)rects.get(i).x / org.cols());
+            double y = comp.rows()*((double)rects.get(i).y / org.rows());
+            rects.set(i, new Rect((int)x, (int)y, (int)width, (int)height));
+        }
+
+    }
     private void drawRectangles(Mat resized_mask, ArrayList<Rect> rects, ArrayList<String> labels){
         //Draw rectangle on result image
-        Imgproc.cvtColor(resized_mask, resized_mask, Imgproc.COLOR_GRAY2BGR);
+        if(resized_mask.channels() <= 1) Imgproc.cvtColor(resized_mask, resized_mask, Imgproc.COLOR_GRAY2BGR);
+
         for(int i = 0; i < rects.size(); i++) {
             Rect rect = rects.get(i);
             String label = labels.get(i);
-            Imgproc.rectangle(resized_mask, rect, new Scalar(255, 0, 0));
-            Imgproc.putText(resized_mask, label,new Point(rect.x, rect.y-10), Imgproc.FONT_ITALIC, 0.5, new Scalar(0,0,255));
+            Imgproc.rectangle(resized_mask, rect, new Scalar(0, 0, 255));
+            Imgproc.putText(resized_mask, label,new Point(rect.x, rect.y-10), Imgproc.FONT_ITALIC, 1.5, new Scalar(0,0,255));
         }
     }
 
@@ -260,7 +275,7 @@ public class ColorDetection {
 
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 
-        ColorDetection cd = new ColorDetection("res/Board.jpg");
+        ColorDetection cd = new ColorDetection("res/board.png");
         cd.frame.setPreferredSize(new Dimension(1800, 900));
         cd.frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // reagér paa luk
         cd.frame.pack();                       // saet vinduets stoerrelse
