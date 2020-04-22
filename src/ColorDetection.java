@@ -24,7 +24,6 @@ public class ColorDetection {
     public JLabel output;
     public Mat hsvImage;
     public Mat mask;
-    public Mat temp;
     private ImageIcon icon1, icon2;
     private enum Type{
         RIGHT, LEFT, UP, DOWN;
@@ -45,36 +44,16 @@ public class ColorDetection {
             System.exit(1);
         }
         in = Imgcodecs.imread(imgname);
-        temp = Imgcodecs.imread("res/Templates/t1.png");
 
+        double start = System.currentTimeMillis();
         Imgproc.blur(in, blurredImage, new Size(5, 5));
 
         Imgproc.cvtColor(blurredImage, hsvImage, Imgproc.COLOR_BGR2HSV);
-        Imgproc.cvtColor(temp, temp, Imgproc.COLOR_BGR2GRAY);
 
         Core.inRange(hsvImage,  new Scalar(100,150, 150), new Scalar(120, 255, 255), mask);
 
 
         //Imgproc.cvtColor(mask, outputImage, Imgproc.COLOR_HSV2BGR);
-
-        Imgproc.resize(mask, resized_mask, new Size(1280, 720), 0, 0, Imgproc.INTER_LINEAR);
-
-        Imgproc.matchTemplate(resized_mask, temp, matchres, Imgproc.TM_CCOEFF);
-
-        Core.MinMaxLocResult mmr = Core.minMaxLoc(matchres);
-        Point matchLoc=mmr.maxLoc;
-        double [] datapt = new double[resized_mask.channels()];
-        double xs = matchLoc.x - 10;
-        double ys = matchLoc.y;
-        while(datapt[0] == 0.0){
-            datapt = resized_mask.get((int) ys, (int) xs);
-            ys += 1.0;
-            if(resized_mask.rows() <= ys) {
-                System.out.println("break");
-                break;
-            }
-        }
-        Rect t1 = getSubSqr(resized_mask, (int) ys, (int) xs);
 
 /*
         ArrayList values = new ArrayList<>();
@@ -95,12 +74,27 @@ public class ColorDetection {
         }
 */
 
-        //Draw rectangle on result image
-        Imgproc.rectangle(resized_mask, matchLoc, new Point(matchLoc.x + temp.cols(),
-                matchLoc.y + temp.rows()), new Scalar(255, 255, 255));
+        Imgproc.resize(mask, resized_mask, new Size(1280, 720), 0, 0, Imgproc.INTER_NEAREST);
+        ArrayList<Rect> rects = new ArrayList<>();
+        ArrayList<String> labels = new ArrayList<>();
 
-        Imgproc.rectangle(resized_mask, t1, new Scalar(80, 255, 255));
+        File[] files = new File("res/Templates/").listFiles();
+        for (File file : files){
+            System.out.println(file.getPath());
+            ArrayList<Rect> found = matchTemplates(resized_mask, file.getPath());
+            for(Rect rect : found){
+                rects.add(rect);
+                labels.add(file.getName());
+            }
 
+        }
+        drawRectangles(resized_mask, rects, labels);
+
+        Imgcodecs.imwrite("res/output.png", resized_mask);
+
+        double end = System.currentTimeMillis();
+
+        System.out.println("Time spent (ms): " + (end - start));
         imgOut = matToBufferedImage(resized_mask);
 
         input = new JLabel();
@@ -119,17 +113,63 @@ public class ColorDetection {
         frame.add(panel);
 
     }
+    private void drawRectangles(Mat resized_mask, ArrayList<Rect> rects, ArrayList<String> labels){
+        //Draw rectangle on result image
+        Imgproc.cvtColor(resized_mask, resized_mask, Imgproc.COLOR_GRAY2BGR);
+        for(int i = 0; i < rects.size(); i++) {
+            Rect rect = rects.get(i);
+            String label = labels.get(i);
+            Imgproc.rectangle(resized_mask, rect, new Scalar(255, 0, 0));
+            Imgproc.putText(resized_mask, label,new Point(rect.x, rect.y-10), Imgproc.FONT_ITALIC, 0.5, new Scalar(0,0,255));
+        }
+    }
+
+    private ArrayList<Rect> matchTemplates (Mat resized_mask, String stemp){
+        ArrayList<Rect> rects = new ArrayList<>();
+        Mat temp = Imgcodecs.imread(stemp);
+        Imgproc.cvtColor(temp, temp, Imgproc.COLOR_BGR2GRAY);
+        Mat matchres = new Mat();
+
+        Imgproc.matchTemplate(resized_mask, temp, matchres, Imgproc.TM_CCOEFF);
+
+        Core.MinMaxLocResult mmr = Core.minMaxLoc(matchres);
+        Point matchLoc=mmr.maxLoc;
+        double [] datapt = new double[resized_mask.channels()];
+        double xs = matchLoc.x - 10;
+        double ys = matchLoc.y;
+        while(datapt[0] == 0.0){
+            datapt = resized_mask.get((int) ys, (int) xs);
+            ys += 1.0;
+            if(resized_mask.rows() <= ys) {
+                System.out.println("break");
+                break;
+            }
+        }
+        Rect rect = getSubSqr(resized_mask, (int) ys, (int) xs);
+        rects.add(new Rect(matchLoc, new Point(matchLoc.x + temp.cols(), matchLoc.y + temp.rows())));
+        rects.add(rect);
+        return rects;
+    }
+
     private Rect getSubSqr(Mat mask, int y, int x){
         //find right most point
-        int right = dfs(mask, y, x, Type.RIGHT).x;
+        java.awt.Point right = dfs(mask, y, x, Type.RIGHT);
         //find left most point
-        int left = dfs(mask, y, x, Type.LEFT).x;
+        java.awt.Point left = dfs(mask, y, x, Type.LEFT);
         //find highest point
-        int up = dfs(mask, y, x, Type.UP).y;
+        java.awt.Point up = dfs(mask, y, x, Type.UP);
         //find lowest point
-        int down = dfs(mask, y, x, Type.DOWN).y;
+        java.awt.Point down = dfs(mask, y, x, Type.DOWN);
+
+        String s = new String();
+        s = "Right: " + right.toString()+"\n";
+        s += "Left: " + left.toString()+"\n";
+        s += "Up: " + up.toString()+"\n";
+        s += "Down: " + down.toString()+"\n";
+        System.out.println(s);
+
         //create dimension
-        return new Rect(left, up, right - left, down - up);
+        return new Rect(left.x, up.y, right.x - left.x, down.y - up.y);
     }
     private java.awt.Point dfs(Mat mask, int y, int x, Type type){
         java.awt.Point thispt = new java.awt.Point(x, y);
@@ -166,11 +206,11 @@ public class ColorDetection {
                 leftdata = mask.get(y, x-1)[0];
 
                 //Get data from lower neighbour
-                updata = mask.get(y-1, x)[0];
+                downdata = mask.get(y+1, x)[0];
 
                 //check neighbour data for valid pixel
                 if (leftdata > 0) return dfs(mask, y, x-1, type);
-                else if(updata > 0) return dfs(mask, y-1, x, type);
+                else if(downdata > 0) return dfs(mask, y+1, x, type);
 
                 //return point of right most valid pixel.
                 return thispt;
@@ -179,12 +219,11 @@ public class ColorDetection {
                 rightdata = mask.get(y, x+1)[0];
 
                 //Get data from lower neighbour
-                downdata = mask.get(y+1, x)[0];
-
+                updata = mask.get(y-1, x)[0];
 
                 //check neighbour data for valid pixel
                 if (rightdata > 0) return dfs(mask, y, x+1, type);
-                else if(downdata > 0) return dfs(mask, y+1, x, type);
+                else if(updata > 0) return dfs(mask, y-1, x, type);
 
                 //return point of right most valid pixel.
                 return thispt;
