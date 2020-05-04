@@ -20,11 +20,10 @@ public class ColorDetection {
     public BufferedImage imgIn, imgOut;
     public JFrame frame;
     public JPanel panel;
-    public JLabel input;
-    public JLabel output;
+    public JLabel input, bw, output;
     public Mat hsvImage;
     public Mat mask;
-    private ImageIcon icon1, icon2;
+    private ImageIcon icon0, icon1, icon2;
     private enum Type{
         RIGHT, LEFT, UP, DOWN;
     }
@@ -102,15 +101,19 @@ public class ColorDetection {
         imgOut = matToBufferedImage(in);
 
         input = new JLabel();
+        bw = new JLabel();
         output = new JLabel();
 
 
-        icon1 = new ImageIcon(imgIn.getScaledInstance(800, 600, Image.SCALE_SMOOTH));
-        icon2 = new ImageIcon(imgOut.getScaledInstance(800, 600, Image.SCALE_SMOOTH));
-        input.setIcon(icon1);
+        icon0 = new ImageIcon(imgIn.getScaledInstance(800, 480, Image.SCALE_SMOOTH));
+        icon1 = new ImageIcon(matToBufferedImage(mask).getScaledInstance(800, 480, Image.SCALE_SMOOTH));
+        icon2 = new ImageIcon(imgOut.getScaledInstance(800, 480, Image.SCALE_SMOOTH));
+        input.setIcon(icon0);
+        bw.setIcon(icon1);
         output.setIcon(icon2);
         panel = new JPanel();
         panel.add(input);
+        panel.add(bw);
         panel.add(output);
 
         frame = new JFrame("Color Detection");
