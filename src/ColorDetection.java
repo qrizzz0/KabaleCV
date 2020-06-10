@@ -49,7 +49,7 @@ public class ColorDetection {
 
         Imgproc.cvtColor(blurredImage, hsvImage, Imgproc.COLOR_BGR2HSV);
 
-        Core.inRange(hsvImage,  new Scalar(100,150, 150), new Scalar(120, 255, 255), mask);
+        Core.inRange(hsvImage,  new Scalar(100,150, 150), new Scalar(150, 255, 255), mask);
 
         //Imgproc.cvtColor(mask, outputImage, Imgproc.COLOR_HSV2BGR);
 
@@ -277,7 +277,7 @@ public class ColorDetection {
 
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 
-        ColorDetection cd = new ColorDetection("res/realboard_pic/realboard8.png");
+        ColorDetection cd = new ColorDetection("res/realboard_pic/realboard1.png");
         cd.frame.setPreferredSize(new Dimension(1800, 900));
         cd.frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // reagér paa luk
         cd.frame.pack();                       // saet vinduets stoerrelse
