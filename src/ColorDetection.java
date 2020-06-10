@@ -51,7 +51,6 @@ public class ColorDetection {
 
         Core.inRange(hsvImage,  new Scalar(100,150, 150), new Scalar(120, 255, 255), mask);
 
-
         //Imgproc.cvtColor(mask, outputImage, Imgproc.COLOR_HSV2BGR);
 
 /*
@@ -73,7 +72,7 @@ public class ColorDetection {
         }
 */
 
-        Imgproc.resize(mask, resized_mask, new Size(1280, 720), 0, 0, Imgproc.INTER_NEAREST);
+        Imgproc.resize(mask, resized_mask, new Size(1500, 1500), 0, 0, Imgproc.INTER_NEAREST);
         ArrayList<Rect> rects = new ArrayList<>();
         ArrayList<String> labels = new ArrayList<>();
 
@@ -278,7 +277,7 @@ public class ColorDetection {
 
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 
-        ColorDetection cd = new ColorDetection("res/board.png");
+        ColorDetection cd = new ColorDetection("res/realboard_pic/realboard8.png");
         cd.frame.setPreferredSize(new Dimension(1800, 900));
         cd.frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE); // reagér paa luk
         cd.frame.pack();                       // saet vinduets stoerrelse
