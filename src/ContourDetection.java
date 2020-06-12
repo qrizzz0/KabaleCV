@@ -36,6 +36,7 @@ public class ContourDetection extends JFrame {
         hsvImage = new Mat();
         mask = new Mat();
         Mat allcontoursimg = new Mat();
+        Mat maskcontour = new Mat();
         Mat grey = new Mat();
         Mat canny = new Mat();
         contours = new ArrayList<>();
@@ -62,8 +63,14 @@ public class ContourDetection extends JFrame {
         Imgproc.cvtColor(in, hsvImage, Imgproc.COLOR_BGR2HSV);
         //Imgproc.Canny(grey, canny, 10, 100);
 
-        Core.inRange(hsvImage,  new Scalar(90,35, 50), new Scalar(150, 255, 160), mask);
+        Core.inRange(hsvImage,  new Scalar(90,35, 50), new Scalar(150, 255, 200), mask);
         Imgproc.findContours(mask,contours,new Mat(),Imgproc.RETR_EXTERNAL,Imgproc.CHAIN_APPROX_SIMPLE);
+        mask.copyTo(maskcontour);
+        Imgproc.cvtColor(maskcontour, maskcontour, Imgproc.COLOR_GRAY2BGR);
+
+        Imgproc.drawContours(maskcontour, contours, -1, new Scalar(0, 0, 255), 2);
+        //Imgcodecs.imwrite("res/output.png", allcontoursimg);
+
         /*
         for (MatOfPoint contour : contours){
             MatOfPoint2f fcontour = new MatOfPoint2f(contour.toArray());
@@ -88,8 +95,6 @@ public class ContourDetection extends JFrame {
 
             if(Imgproc.contourArea(apcontour) >= 6000) apcontours.add(apcontour);
         }
-        Imgproc.drawContours(allcontoursimg, contours, -1, new Scalar(0,0,0), 2);
-        Imgcodecs.imwrite("res/output.png", allcontoursimg);
         imgOut = matToBufferedImage(in);
 
         input = new JLabel();
@@ -97,7 +102,7 @@ public class ContourDetection extends JFrame {
         output = new JLabel();
 
         icon0 = new ImageIcon(imgIn.getScaledInstance(800, 480, Image.SCALE_SMOOTH));
-        icon1 = new ImageIcon(matToBufferedImage(mask).getScaledInstance(800, 480, Image.SCALE_SMOOTH));
+        icon1 = new ImageIcon(matToBufferedImage(maskcontour).getScaledInstance(800, 480, Image.SCALE_SMOOTH));
         icon2 = new ImageIcon(imgOut.getScaledInstance(800, 480, Image.SCALE_SMOOTH));
         input.setIcon(icon0);
         bw.setIcon(icon1);
@@ -153,7 +158,7 @@ public class ContourDetection extends JFrame {
 
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 
-        ContourDetection cd = new ContourDetection("Contour Detection","res/realboard_pic/realboard2.png");
+        ContourDetection cd = new ContourDetection("Contour Detection","res/contourtest2.png");
         cd.setPreferredSize(new Dimension(1800, 900));
         cd.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // reagér paa luk
         cd.pack();                       // saet vinduets stoerrelse
