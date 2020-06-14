@@ -63,7 +63,7 @@ public class ContourDetection extends JFrame {
         Imgproc.cvtColor(in, hsvImage, Imgproc.COLOR_BGR2HSV);
         //Imgproc.Canny(grey, canny, 10, 100);
 
-        Core.inRange(hsvImage,  new Scalar(90,35, 50), new Scalar(150, 255, 200), mask);
+        Core.inRange(hsvImage,  new Scalar(90,35, 25), new Scalar(150, 255, 255), mask);
         Imgproc.findContours(mask,contours,new Mat(),Imgproc.RETR_EXTERNAL,Imgproc.CHAIN_APPROX_SIMPLE);
         mask.copyTo(maskcontour);
         Imgproc.cvtColor(maskcontour, maskcontour, Imgproc.COLOR_GRAY2BGR);

@@ -2,7 +2,6 @@ import org.opencv.core.*;
 import org.opencv.core.Point;
 import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
-import org.opencv.imgproc.Moments;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -11,10 +10,12 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
-public class PerspectiveDetection extends JFrame {
+public class BoardDetection extends JFrame {
 
     public BufferedImage imgIn, imgOut;
     public JPanel panel;
@@ -27,16 +28,14 @@ public class PerspectiveDetection extends JFrame {
     public Integer i;
     private ImageIcon icon0, icon1, icon2;
 
-
-
-    public PerspectiveDetection (String title, String imgname) {
-        int largestindex = 0;
+    public BoardDetection(String title, String imgname){
         Mat grey = new Mat();
         Mat canny = new Mat();
         Mat cannyimg = new Mat();
         Mat cnthiarchy = new Mat();
         Mat boardimg = new Mat();
         contours = new ArrayList<>();
+        apcontours = new ArrayList<>();
         try {
             imgIn = ImageIO.read(new File(imgname));
         } catch (IOException e) {
@@ -49,7 +48,7 @@ public class PerspectiveDetection extends JFrame {
         Imgproc.GaussianBlur(in, in, new Size(5, 5), 0);
 
         Imgproc.cvtColor(in, grey, Imgproc.COLOR_BGR2GRAY);
-        Imgcodecs.imwrite("res/greypic.png", grey);
+
         Imgproc.Canny(grey, canny, 10, 70);
         canny.copyTo(cannyimg);
         Imgproc.cvtColor(cannyimg, cannyimg,Imgproc.COLOR_GRAY2BGR);
@@ -78,16 +77,29 @@ public class PerspectiveDetection extends JFrame {
 
         Imgproc.warpPerspective(boardimg, persimg, warpMat, imgsize);
 
+        hsvImage = new Mat();
+        mask = new Mat();
+        Mat persblur = new Mat();
+        Imgproc.GaussianBlur(persimg, persblur, new Size(5, 5), 0);
+        Imgproc.cvtColor(persblur, hsvImage, Imgproc.COLOR_BGR2HSV);
+        contours.clear();
+        Core.inRange(hsvImage,  new Scalar(90,25, 25), new Scalar(150, 255, 255), mask);
+        Imgproc.findContours(mask,contours,new Mat(),Imgproc.RETR_EXTERNAL,Imgproc.CHAIN_APPROX_SIMPLE);
 
-        /*
-        RotatedRect rect = Imgproc.minAreaRect(m2f);
-        MatOfPoint2f points = new MatOfPoint2f();
-        Imgproc.boxPoints(rect, points);
-        System.out.println(points);
-        */
-        List<MatOfPoint> ls = new ArrayList<>();
-        ls.add(new MatOfPoint(approx.toArray()));
-        Imgproc.drawContours(cannyimg, ls, -1, new Scalar(0, 0 ,255), 5);
+        for(MatOfPoint cont : contours){
+            double area = Imgproc.contourArea(cont);
+            if (area >= 6000){
+                MatOfPoint2f apcontour = approxContourAsRect(cont);
+                apcontours.add(new MatOfPoint(apcontour.toArray()));
+                System.out.println("Area of contour = " + area);
+            }
+        }
+
+
+        Imgproc.drawContours(persimg, apcontours, -1, new Scalar(0, 0 ,255), 5);
+
+
+
         imgOut = matToBufferedImage(persimg);
 
         input = new JLabel();
@@ -95,7 +107,7 @@ public class PerspectiveDetection extends JFrame {
         output = new JLabel();
 
         icon0 = new ImageIcon(imgIn.getScaledInstance(800, 480, Image.SCALE_SMOOTH));
-        icon1 = new ImageIcon(matToBufferedImage(cannyimg).getScaledInstance(800, 480, Image.SCALE_SMOOTH));
+        icon1 = new ImageIcon(matToBufferedImage(mask).getScaledInstance(800, 480, Image.SCALE_SMOOTH));
         icon2 = new ImageIcon(imgOut.getScaledInstance(800, 480, Image.SCALE_SMOOTH));
         input.setIcon(icon0);
         bw.setIcon(icon1);
@@ -107,7 +119,8 @@ public class PerspectiveDetection extends JFrame {
         this.setTitle(title);
         this.add(panel);
     }
-    private MatOfPoint findMaxContour(List<MatOfPoint> contours){
+
+    private MatOfPoint findMaxContour(java.util.List<MatOfPoint> contours){
         MatOfPoint maxcnt = new MatOfPoint();
         double maxarea = 0;
         for(int i = 0; i < contours.size(); i++){
@@ -119,7 +132,6 @@ public class PerspectiveDetection extends JFrame {
         }
         return maxcnt;
     }
-
     private MatOfPoint2f approxContourAsRect(MatOfPoint contour){
 
         MatOfPoint2f m2f = new MatOfPoint2f(contour.toArray());
@@ -147,11 +159,80 @@ public class PerspectiveDetection extends JFrame {
         System.out.println("Epsilon = " + epsilon);
         return approx;
     }
+    /* This has the potential to be stuck in infinite loop, trying to find an epsilon which approximates to 4. This epsilon might not exist.
+    private MatOfPoint2f approxContourAsRect(MatOfPoint contour){
+
+        MatOfPoint2f m2f = new MatOfPoint2f(contour.toArray());
+        MatOfPoint2f approx = new MatOfPoint2f();
+        double epsilon = 0.01 * Imgproc.arcLength(m2f, true);
+        double lepsilon = 0, repsilon = 0;
+        Boolean increased = null;
+        //If are contour has less vertices then 4, then we cannot approximate and we will never be able to isolate the board.
+        if(m2f.total() < 4) {
+            System.err.println("ERR: Can't approx when contour is already less than 4 vertices");
+            return null;
+        }
+        //Find an epsilon which approximates the contour to an rectangle.
+        //The higher the epsilon the less vertices. Epsilon can't be zero or below.
+        if(m2f.total() > 4) {
+
+            Imgproc.approxPolyDP(m2f, approx, epsilon, true);
+            if(approx.total() > 4){
+                lepsilon = epsilon;
+                repsilon = 2*epsilon;
+                while (approx.total() > 4){
+                    Imgproc.approxPolyDP(m2f, approx, repsilon, true);
+                    repsilon *= 2;
+                    if(approx.total() == 4) return approx;
+                }
+            } else if (approx.total() < 4) {
+                repsilon = epsilon;
+                lepsilon = 2/epsilon;
+                while (approx.total() < 4){
+                    Imgproc.approxPolyDP(m2f, approx, lepsilon, true);
+                    lepsilon /= 2;
+                    if(approx.total() == 4) return approx;
+                }
+            } else {
+                return approx;
+            }
+
+            while (repsilon > lepsilon){
+
+                    double midepsilon = lepsilon + (repsilon - lepsilon) / 2;
+                    Imgproc.approxPolyDP(m2f, approx, midepsilon, true);
+
+                    System.out.printf("Total = %d\nEpsilon = %f\n", approx.total(),midepsilon);
+                    // If the element is present at the
+                    // middle itself
+                    if (approx.total() == 4)
+                        return approx;
+
+                    // If element is smaller than mid, then
+                    // it can only be present in left subarray
+                    if (approx.total() > 4){
+                        lepsilon = midepsilon;
+                    } else {
+                        repsilon = midepsilon;
+                    }
+
+                if (epsilon <= 0){
+                    System.err.println("ERR: Epsilon was less than zero");
+                    return null;
+                }
+            }
+        }
+        System.out.println("Vertices in approx = " + approx.total());
+        System.out.println("Epsilon = " + epsilon);
+        return approx;
+    }
+    */
+
     //inspired by: https://www.pyimagesearch.com/2014/08/25/4-point-opencv-getperspective-transform-example/
     private MatOfPoint2f sortApproxContour(MatOfPoint2f approx){
-        Point [] pntarr = new Point[4];
-        Point [] approxarr = approx.toArray();
-        List<Double> sumarr = new ArrayList<>();
+        org.opencv.core.Point[] pntarr = new org.opencv.core.Point[4];
+        Point[] approxarr = approx.toArray();
+        java.util.List<Double> sumarr = new ArrayList<>();
         List<Double> diffarr = new ArrayList<>();
         //There is always four vertices
         if(approx.total() != 4){
@@ -159,12 +240,12 @@ public class PerspectiveDetection extends JFrame {
             return null;
         }
         /*
-        * Form of the sort:
-        * 0: top-left corner will have the smallest sum.
-        * 1: top-right corner will have the smallest difference.
-        * 2: bottom-right corner will have the largest sum.
-        * 3: bottom-left corner will have the largest difference.
-        * */
+         * Form of the sort:
+         * 0: top-left corner will have the smallest sum.
+         * 1: top-right corner will have the smallest difference.
+         * 2: bottom-right corner will have the largest sum.
+         * 3: bottom-left corner will have the largest difference.
+         * */
 
         //Calculate sum of each point.
         //Calculate difference of each point.
@@ -215,10 +296,11 @@ public class PerspectiveDetection extends JFrame {
 
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 
-        PerspectiveDetection pd = new PerspectiveDetection("Perspective Detection", "res/boardpics/pic2.jpg");
-        pd.setPreferredSize(new Dimension(1800, 900));
-        pd.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // reagér paa luk
-        pd.pack();                       // saet vinduets stoerrelse
-        pd.setVisible(true);                      // aabn vinduet
+        BoardDetection bd = new BoardDetection("Board Detection", "res/boardpics/pic10.jpg");
+        bd.setPreferredSize(new Dimension(1800, 1000));
+        bd.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // reagér paa luk
+        bd.pack();                       // saet vinduets stoerrelse
+        bd.setVisible(true);                      // aabn vinduet
+
     }
 }
