@@ -10,9 +10,7 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferByte;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
+import java.util.*;
 import java.util.List;
 
 public class BoardDetection extends JFrame {
@@ -22,7 +20,7 @@ public class BoardDetection extends JFrame {
     public JLabel input, bw, output;
     public Mat hsvImage;
     public Mat mask;
-    public Mat in, org;
+    public Mat in, persimg, org;
     public Iterator<MatOfPoint> iterator;
     public List<MatOfPoint> contours, apcontours;
     public Integer i;
@@ -34,8 +32,10 @@ public class BoardDetection extends JFrame {
         Mat cannyimg = new Mat();
         Mat cnthiarchy = new Mat();
         Mat boardimg = new Mat();
+        i = 0;
+        org = new Mat();
         contours = new ArrayList<>();
-        apcontours = new ArrayList<>();
+        apcontours = new ArrayList<MatOfPoint>( );
         try {
             imgIn = ImageIO.read(new File(imgname));
         } catch (IOException e) {
@@ -73,10 +73,10 @@ public class BoardDetection extends JFrame {
 
         Mat warpMat = Imgproc.getPerspectiveTransform(approx, dst);
 
-        Mat persimg = new Mat();
+        persimg = new Mat();
 
         Imgproc.warpPerspective(boardimg, persimg, warpMat, imgsize);
-
+        persimg.copyTo(org);
         hsvImage = new Mat();
         mask = new Mat();
         Mat persblur = new Mat();
@@ -90,10 +90,34 @@ public class BoardDetection extends JFrame {
             double area = Imgproc.contourArea(cont);
             if (area >= 6000){
                 MatOfPoint2f apcontour = approxContourAsRect(cont);
+                apcontour = sortApproxContour(apcontour);
                 apcontours.add(new MatOfPoint(apcontour.toArray()));
                 System.out.println("Area of contour = " + area);
             }
         }
+
+        Collections.sort(apcontours, new Comparator<MatOfPoint>() {
+            @Override
+            public int compare(MatOfPoint o1, MatOfPoint o2) {
+                double o1x = o1.get(0,0)[0];
+                double o1y = o1.get(0,0)[1];
+                double o2x = o2.get(0,0)[0];
+                double o2y = o2.get(0,0)[1];
+                int cmp = 0;
+                int resulty = (int) (o1y - o2y);
+                if(resulty >= 20 || resulty <= -20)
+                    cmp = resulty;
+
+                //int cmp = Integer.compare((int)o1y, (int)o2y);
+                if (cmp != 0) {
+                    return cmp;
+                }
+
+                return (int) (o1x - o2x);
+
+            }
+        });
+
 
 
         Imgproc.drawContours(persimg, apcontours, -1, new Scalar(0, 0 ,255), 5);
@@ -295,15 +319,37 @@ public class BoardDetection extends JFrame {
         return image;
     }
 
+
+    public void nextContour(){
+        org.copyTo(persimg);
+        if (i >= apcontours.size()) i = 0;
+
+        Imgproc.drawContours(persimg, apcontours, i, new Scalar(0, 0, 0), 2);
+        imgOut = matToBufferedImage(persimg);
+        icon2 = new ImageIcon(imgOut.getScaledInstance(800, 480, Image.SCALE_SMOOTH));
+        output.setIcon(icon2);
+        System.out.println("Now printing contour: " + i);
+        System.out.printf("Coordinates of point (0, 0) = ( %f , %f )\n", apcontours.get(i).get(0,0)[0],apcontours.get(i).get(0,0)[1]);
+        System.out.println();
+
+        i++;
+    }
     public static void main (String [] args) {
 
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 
-        BoardDetection bd = new BoardDetection("Board Detection", "res/boardpics/pic10.jpg");
+        BoardDetection bd = new BoardDetection("Board Detection", "res/boardpics/pic4.jpg");
         bd.setPreferredSize(new Dimension(1800, 1000));
         bd.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // reagér paa luk
         bd.pack();                       // saet vinduets stoerrelse
         bd.setVisible(true);                      // aabn vinduet
-
+        while (bd.isEnabled()){
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            bd.nextContour();
+        }
     }
 }
