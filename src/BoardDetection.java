@@ -132,6 +132,7 @@ public class BoardDetection extends JFrame {
         }
         return maxcnt;
     }
+    /*
     private MatOfPoint2f approxContourAsRect(MatOfPoint contour){
 
         MatOfPoint2f m2f = new MatOfPoint2f(contour.toArray());
@@ -159,9 +160,11 @@ public class BoardDetection extends JFrame {
         System.out.println("Epsilon = " + epsilon);
         return approx;
     }
-    /* This has the potential to be stuck in infinite loop, trying to find an epsilon which approximates to 4. This epsilon might not exist.
-    private MatOfPoint2f approxContourAsRect(MatOfPoint contour){
+    */
 
+     //This has the potential to be stuck in infinite loop, trying to find an epsilon which approximates to 4. This epsilon might not exist.
+    private MatOfPoint2f approxContourAsRect(MatOfPoint contour){
+        Thread watchdog = new Thread();
         MatOfPoint2f m2f = new MatOfPoint2f(contour.toArray());
         MatOfPoint2f approx = new MatOfPoint2f();
         double epsilon = 0.01 * Imgproc.arcLength(m2f, true);
@@ -226,7 +229,7 @@ public class BoardDetection extends JFrame {
         System.out.println("Epsilon = " + epsilon);
         return approx;
     }
-    */
+
 
     //inspired by: https://www.pyimagesearch.com/2014/08/25/4-point-opencv-getperspective-transform-example/
     private MatOfPoint2f sortApproxContour(MatOfPoint2f approx){
