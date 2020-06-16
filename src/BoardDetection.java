@@ -21,10 +21,12 @@ public class BoardDetection extends JFrame {
     public Mat hsvImage;
     public Mat mask;
     public Mat in, persimg, org;
+    public HashMap<Integer, ArrayContourObject> hashContour;
+    public ArrayList<ArrayContourObject> arrayContourObjects;
     public Iterator<MatOfPoint> iterator;
     public List<MatOfPoint> contours, apcontours;
-    public Integer i;
     private ImageIcon icon0, icon1, icon2;
+
 
     public BoardDetection(String title, String imgname){
         Mat grey = new Mat();
@@ -32,8 +34,9 @@ public class BoardDetection extends JFrame {
         Mat cannyimg = new Mat();
         Mat cnthiarchy = new Mat();
         Mat boardimg = new Mat();
-        i = 0;
+
         org = new Mat();
+        arrayContourObjects = new ArrayList<>();
         contours = new ArrayList<>();
         apcontours = new ArrayList<MatOfPoint>( );
         try {
@@ -96,33 +99,27 @@ public class BoardDetection extends JFrame {
             }
         }
 
-        Collections.sort(apcontours, new Comparator<MatOfPoint>() {
-            @Override
-            public int compare(MatOfPoint o1, MatOfPoint o2) {
-                double o1x = o1.get(0,0)[0];
-                double o1y = o1.get(0,0)[1];
-                double o2x = o2.get(0,0)[0];
-                double o2y = o2.get(0,0)[1];
-                int cmp = 0;
-                int resulty = (int) (o1y - o2y);
-                if(resulty >= 20 || resulty <= -20)
-                    cmp = resulty;
+        Collections.sort(apcontours, (o1, o2) -> {
 
-                //int cmp = Integer.compare((int)o1y, (int)o2y);
-                if (cmp != 0) {
-                    return cmp;
-                }
+            double o1x = o1.get(0,0)[0];
+            double o1y = o1.get(0,0)[1];
+            double o2x = o2.get(0,0)[0];
+            double o2y = o2.get(0,0)[1];
+            int cmp = 0;
+            int resulty = (int) (o1y - o2y);
+            if(resulty >= 20 || resulty <= -20)
+                cmp = resulty;
 
-                return (int) (o1x - o2x);
-
+            //int cmp = Integer.compare((int)o1y, (int)o2y);
+            if (cmp != 0) {
+                return cmp;
             }
+
+            return (int) (o1x - o2x);
+
         });
 
-
-
         Imgproc.drawContours(persimg, apcontours, -1, new Scalar(0, 0 ,255), 5);
-
-
 
         imgOut = matToBufferedImage(persimg);
 
@@ -321,18 +318,30 @@ public class BoardDetection extends JFrame {
 
 
     public void nextContour(){
-        org.copyTo(persimg);
-        if (i >= apcontours.size()) i = 0;
 
-        Imgproc.drawContours(persimg, apcontours, i, new Scalar(0, 0, 0), 2);
-        imgOut = matToBufferedImage(persimg);
-        icon2 = new ImageIcon(imgOut.getScaledInstance(800, 480, Image.SCALE_SMOOTH));
-        output.setIcon(icon2);
-        System.out.println("Now printing contour: " + i);
-        System.out.printf("Coordinates of point (0, 0) = ( %f , %f )\n", apcontours.get(i).get(0,0)[0],apcontours.get(i).get(0,0)[1]);
-        System.out.println();
 
-        i++;
+        for (int i=0; i <= apcontours.size()-1; i++) {
+            org.copyTo(persimg);
+
+            ArrayContourObject arrayContourObject = new ArrayContourObject(apcontours.get(i));
+            Imgproc.drawContours(persimg, apcontours, i, new Scalar(0, 0, 0), 2);
+            arrayContourObjects.add(arrayContourObject);
+
+            System.out.println(arrayContourObjects.get(i).topLeft());
+            System.out.println(arrayContourObjects.get(i).bottomRight());
+            imgOut = matToBufferedImage(persimg);
+            icon2 = new ImageIcon(imgOut.getScaledInstance(800, 480, Image.SCALE_SMOOTH));
+            output.setIcon(icon2);
+            System.out.println("Now printing contour: " + i);
+            System.out.printf("Coordinates of point (0, 0) = ( %f , %f )\n", apcontours.get(i).get(0, 0)[0], apcontours.get(i).get(0, 0)[1]);
+            System.out.println();
+
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+        }
     }
     public static void main (String [] args) {
 
@@ -343,13 +352,7 @@ public class BoardDetection extends JFrame {
         bd.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // reagér paa luk
         bd.pack();                       // saet vinduets stoerrelse
         bd.setVisible(true);                      // aabn vinduet
-        while (bd.isEnabled()){
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            bd.nextContour();
-        }
+        bd.nextContour();
+
     }
 }
