@@ -88,6 +88,7 @@ public class BoardDetection extends JFrame {
         contours.clear();
         Core.inRange(hsvImage,  new Scalar(90,25, 25), new Scalar(150, 255, 255), mask);
         Imgproc.findContours(mask,contours,new Mat(),Imgproc.RETR_EXTERNAL,Imgproc.CHAIN_APPROX_SIMPLE);
+        Imgcodecs.imwrite("out.jpg", mask);
 
         for(MatOfPoint cont : contours){
             double area = Imgproc.contourArea(cont);
@@ -139,6 +140,10 @@ public class BoardDetection extends JFrame {
         panel.add(output);
         this.setTitle(title);
         this.add(panel);
+    }
+
+    private void processImage(Mat img){
+
     }
 
     private MatOfPoint findMaxContour(java.util.List<MatOfPoint> contours){
@@ -347,7 +352,7 @@ public class BoardDetection extends JFrame {
 
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 
-        BoardDetection bd = new BoardDetection("Board Detection", "res/boardpics/pic4.jpg");
+        BoardDetection bd = new BoardDetection("Board Detection", "res/boardMedTing2.jpg");
         bd.setPreferredSize(new Dimension(1800, 1000));
         bd.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // reagér paa luk
         bd.pack();                       // saet vinduets stoerrelse
