@@ -53,7 +53,7 @@ public class PerspectiveDetection extends JFrame {
         Imgproc.Canny(grey, canny, 10, 70);
         canny.copyTo(cannyimg);
         Imgproc.cvtColor(cannyimg, cannyimg,Imgproc.COLOR_GRAY2BGR);
-
+        Imgcodecs.imwrite("res/out.png", cannyimg);
         Imgproc.findContours(canny,contours,cnthiarchy,Imgproc.RETR_TREE,Imgproc.CHAIN_APPROX_SIMPLE);
 
         MatOfPoint maxcnt = findMaxContour(contours);
@@ -88,6 +88,7 @@ public class PerspectiveDetection extends JFrame {
         List<MatOfPoint> ls = new ArrayList<>();
         ls.add(new MatOfPoint(approx.toArray()));
         Imgproc.drawContours(cannyimg, ls, -1, new Scalar(0, 0 ,255), 5);
+        Imgcodecs.imwrite("res/out1.png", cannyimg);
         imgOut = matToBufferedImage(persimg);
 
         input = new JLabel();
@@ -215,7 +216,7 @@ public class PerspectiveDetection extends JFrame {
 
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 
-        PerspectiveDetection pd = new PerspectiveDetection("Perspective Detection", "res/boardpics/pic2.jpg");
+        PerspectiveDetection pd = new PerspectiveDetection("Perspective Detection", "res/boardpics/pic5.jpg");
         pd.setPreferredSize(new Dimension(1800, 900));
         pd.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // reagér paa luk
         pd.pack();                       // saet vinduets stoerrelse

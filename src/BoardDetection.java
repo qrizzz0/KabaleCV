@@ -26,6 +26,7 @@ public class BoardDetection extends JFrame {
     public Iterator<MatOfPoint> iterator;
     public List<MatOfPoint> contours, apcontours;
     private ImageIcon icon0, icon1, icon2;
+    private boolean stop;
 
 
     public BoardDetection(String title, String imgname){
@@ -34,6 +35,7 @@ public class BoardDetection extends JFrame {
         Mat cannyimg = new Mat();
         Mat cnthiarchy = new Mat();
         Mat boardimg = new Mat();
+        Mat perscont = new Mat();
 
         org = new Mat();
         arrayContourObjects = new ArrayList<>();
@@ -47,6 +49,7 @@ public class BoardDetection extends JFrame {
         }
         in = Imgcodecs.imread(imgname);
         in.copyTo(boardimg);
+        in.copyTo(perscont);
 
         Imgproc.GaussianBlur(in, in, new Size(5, 5), 0);
 
@@ -61,7 +64,13 @@ public class BoardDetection extends JFrame {
         MatOfPoint maxcnt = findMaxContour(contours);
 
         MatOfPoint2f approx = approxContourAsRect(maxcnt);
-
+        if(approx == null || approx.total() < 4 || approx.total() > 4){
+            System.err.println("ERR: approximation has failed");
+            return;
+        }
+        List<MatOfPoint> maxcntls = new ArrayList<>();
+        maxcntls.add(maxcnt);
+        Imgproc.drawContours(perscont, maxcntls, -1, new Scalar(0, 0, 255), 5);
         approx = sortApproxContour(approx);
 
         printContour(approx);
@@ -94,6 +103,10 @@ public class BoardDetection extends JFrame {
             double area = Imgproc.contourArea(cont);
             if (area >= 6000){
                 MatOfPoint2f apcontour = approxContourAsRect(cont);
+                if(apcontour == null || apcontour.total() != 4){
+                    System.err.println("ERR: approximation has failed");
+                    continue;
+                }
                 apcontour = sortApproxContour(apcontour);
                 apcontours.add(new MatOfPoint(apcontour.toArray()));
                 System.out.println("Area of contour = " + area);
@@ -128,7 +141,7 @@ public class BoardDetection extends JFrame {
         bw = new JLabel();
         output = new JLabel();
 
-        icon0 = new ImageIcon(imgIn.getScaledInstance(800, 480, Image.SCALE_SMOOTH));
+        icon0 = new ImageIcon(matToBufferedImage(perscont).getScaledInstance(800, 480, Image.SCALE_SMOOTH));
         icon1 = new ImageIcon(matToBufferedImage(mask).getScaledInstance(800, 480, Image.SCALE_SMOOTH));
         icon2 = new ImageIcon(imgOut.getScaledInstance(800, 480, Image.SCALE_SMOOTH));
         input.setIcon(icon0);
@@ -140,10 +153,6 @@ public class BoardDetection extends JFrame {
         panel.add(output);
         this.setTitle(title);
         this.add(panel);
-    }
-
-    private void processImage(Mat img){
-
     }
 
     private MatOfPoint findMaxContour(java.util.List<MatOfPoint> contours){
@@ -189,8 +198,23 @@ public class BoardDetection extends JFrame {
     */
 
      //This has the potential to be stuck in infinite loop, trying to find an epsilon which approximates to 4. This epsilon might not exist.
+    //Created an watchdog thread to terminate the process if stuck for 2 sec.
     private MatOfPoint2f approxContourAsRect(MatOfPoint contour){
-        Thread watchdog = new Thread();
+        Thread watchdog = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                stop = false;
+
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+
+                stop = true;
+            }
+        });
+        watchdog.start();
         MatOfPoint2f m2f = new MatOfPoint2f(contour.toArray());
         MatOfPoint2f approx = new MatOfPoint2f();
         double epsilon = 0.01 * Imgproc.arcLength(m2f, true);
@@ -199,6 +223,7 @@ public class BoardDetection extends JFrame {
         //If are contour has less vertices then 4, then we cannot approximate and we will never be able to isolate the board.
         if(m2f.total() < 4) {
             System.err.println("ERR: Can't approx when contour is already less than 4 vertices");
+            watchdog.stop();
             return null;
         }
         //Find an epsilon which approximates the contour to an rectangle.
@@ -209,10 +234,18 @@ public class BoardDetection extends JFrame {
             if(approx.total() > 4){
                 lepsilon = epsilon;
                 repsilon = 2*epsilon;
-                while (approx.total() > 4){
+                while (true){
+                    System.out.printf("Epsilon: %f\nTotal: %d\n",repsilon, approx.total());
                     Imgproc.approxPolyDP(m2f, approx, repsilon, true);
                     repsilon *= 2;
-                    if(approx.total() == 4) return approx;
+                    if(repsilon > 1E30){
+                        watchdog.stop();
+                        return null;
+                    }
+                    if(approx.total() == 4){
+                        watchdog.stop();
+                        return approx;
+                    }
                 }
             } else if (approx.total() < 4) {
                 repsilon = epsilon;
@@ -220,13 +253,16 @@ public class BoardDetection extends JFrame {
                 while (approx.total() < 4){
                     Imgproc.approxPolyDP(m2f, approx, lepsilon, true);
                     lepsilon /= 2;
-                    if(approx.total() == 4) return approx;
+                    if(approx.total() == 4) {
+                        watchdog.stop();
+                        return approx;
+                    }
                 }
             } else {
                 return approx;
             }
-
-            while (repsilon > lepsilon){
+            synchronized (watchdog) {
+                while (stop != true){
 
                     double midepsilon = lepsilon + (repsilon - lepsilon) / 2;
                     Imgproc.approxPolyDP(m2f, approx, midepsilon, true);
@@ -234,8 +270,11 @@ public class BoardDetection extends JFrame {
                     System.out.printf("Total = %d\nEpsilon = %f\n", approx.total(),midepsilon);
                     // If the element is present at the
                     // middle itself
-                    if (approx.total() == 4)
+                    if (approx.total() == 4){
+                        watchdog.stop();
                         return approx;
+                    }
+
 
                     // If element is smaller than mid, then
                     // it can only be present in left subarray
@@ -245,14 +284,19 @@ public class BoardDetection extends JFrame {
                         repsilon = midepsilon;
                     }
 
-                if (epsilon <= 0){
-                    System.err.println("ERR: Epsilon was less than zero");
-                    return null;
+                    if (epsilon <= 0){
+                        System.err.println("ERR: Epsilon was less than zero");
+                        watchdog.stop();
+                        return null;
+                    }
                 }
             }
+
+
         }
         System.out.println("Vertices in approx = " + approx.total());
         System.out.println("Epsilon = " + epsilon);
+        watchdog.stop();
         return approx;
     }
 
@@ -352,8 +396,8 @@ public class BoardDetection extends JFrame {
 
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
 
-        BoardDetection bd = new BoardDetection("Board Detection", "res/boardMedTing2.jpg");
-        bd.setPreferredSize(new Dimension(1800, 1000));
+        BoardDetection bd = new BoardDetection("Board Detection", "res/boardpics/pic5.jpg");
+        bd.setPreferredSize(new Dimension(1920, 1080));
         bd.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE); // reagér paa luk
         bd.pack();                       // saet vinduets stoerrelse
         bd.setVisible(true);                      // aabn vinduet
